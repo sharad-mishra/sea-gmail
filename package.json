@@ -1,0 +1,21 @@
+{
+  "name": "@sea/server-gmail-mcp",
+  "version": "0.1.0",
+  "description": "Smart Email Assistant MCP server for Gmail integration",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "auth": "node src/auth/oauth.js"
+  },
+  "dependencies": {
+    "googleapis": "^149.0.0",
+    "google-auth-library": "^9.15.1",
+    "dotenv": "^16.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  },
+  "license": "MIT"
+}
