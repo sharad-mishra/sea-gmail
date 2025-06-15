@@ -47,10 +47,16 @@ const initializeGmailClient = async () => {
 const tools = {
   categorizeEmail: async (params) => {
     const { subject, body } = params;
+    let category;
+    let reason;
     if (subject.includes('Invoice') || body.includes('pay')) {
-      return 'invoice';
+      category = 'invoice';
+      reason = subject.includes('Invoice') ? 'The subject contains "Invoice"' : 'The body contains "pay"';
+    } else {
+      category = 'other';
+      reason = 'The subject does not contain "Invoice" and the body does not contain "pay"';
     }
-    return 'other';
+    return { category, reason };
   },
   summarizeThread: async (params, gmail) => {
     const { threadId } = params;
@@ -92,7 +98,19 @@ const startServer = async () => {
   const { gmail } = await initializeGmailClient();
 
   const server = http.createServer((req, res) => {
-    if (req.method === 'POST' && req.url === '/mcp') {
+    logger.info(`Received request: ${req.method} ${req.url}`);
+
+    if (req.method === 'GET' && req.url === '/mcp') {
+      logger.info('Received GET request for /mcp');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        status: 'MCP server running',
+        serverInfo: {
+          name: 'sea-gmail',
+          version: '0.1.0'
+        }
+      }));
+    } else if (req.method === 'POST' && req.url === '/mcp') {
       let body = '';
       req.on('data', chunk => body += chunk);
       req.on('end', async () => {
@@ -100,17 +118,38 @@ const startServer = async () => {
           const message = JSON.parse(body);
           if (message.method === 'initialize') {
             logger.info('Received initialize request');
+            const toolList = Object.keys(tools).map(name => ({
+              name,
+              description: `Tool: ${name}`,
+              inputSchema: { type: "object", properties: { subject: { type: "string" }, body: { type: "string" } }, required: [] }
+            }));
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
               jsonrpc: '2.0',
               id: message.id,
               result: {
-                capabilities: {},
+                capabilities: {
+                  supportsTools: true,
+                  tools: toolList
+                },
                 serverInfo: {
                   name: 'sea-gmail',
                   version: '0.1.0'
                 }
               }
+            }));
+          } else if (message.method === 'listTools') {
+            logger.info('Received listTools request');
+            const toolList = Object.keys(tools).map(name => ({
+              name,
+              description: `Tool: ${name}`,
+              inputSchema: { type: "object", properties: { subject: { type: "string" }, body: { type: "string" } }, required: [] }
+            }));
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              jsonrpc: '2.0',
+              id: message.id,
+              result: toolList
             }));
           } else if (message.method in tools) {
             logger.info(`Received request for method: ${message.method}`);
